@@ -5,6 +5,8 @@ import Data.Array as DA
 import Data.List as DL
 import System.Glib.MainLoop (HandlerId(..))
 
+-- *** DATA TYPES ***
+
 type Coord = (Int,Int)
 type TransCoord = (Int,Int)
 
@@ -42,17 +44,46 @@ data TetrisGameState = TGState
       , hID :: HandlerId
       }
 
+-- *** TETRIS PIECES ***
+
+pSquare = TPiece [(0,0),(1,0),(1,-1),(0,-1)]    [(0,0),(0,-1),(1,-1),(1,0)]   Red
+pLLeft  = TPiece [(0,0),(1,0),(0,-1),(0,-2)]    [(0,0),(-1,-1),(0,-2),(1,0)]  Green
+pLRight = TPiece [(0,0),(-1,0),(0,-1),(0,-2)]   [(0,0),(-1,0),(-1,-2),(1,-1)] Blue
+pZLeft  = TPiece [(0,0),(0,-1),(-1,-1),(-1,-2)] [(0,0),(-1,0),(-1,-2),(1,-1)] Yellow
+pZRight = TPiece [(0,0),(0,-1),(1,-1),(1,-2)]   [(0,0),(-1,-1),(1,-2),(1,0)]  Cyan
+pLine   = TPiece [(0,0),(0,-1),(0,-2),(0,-3)]   [(0,0),(-2,0),(0,-3),(1,0)]   Purple
+pTee    = TPiece [(0,0),(0,-1),(0,-2),(1,-1)]   [(0,0),(-1,-1),(0,-2),(1,0)]  White
+
+tPieces = [pSquare,pLLeft,pLRight,pZLeft,pZRight,pLine,pTee]
+
+-- *** COLOR DEFINITIONS *** 
+
+tBlockToRGBd :: TetrisBlock -> (Double,Double,Double)
+tBlockToRGBd t = case t of
+                     Nil -> (0,0,0)
+                     Red -> (1,0,0)
+                     Green -> (0,1,0)
+                     Blue -> (0,0,1)
+                     Yellow -> (1,1,0)
+                     Cyan -> (0,1,1)
+                     Purple -> (1,0,1)
+                     White -> (1,1,1)
+
+-- *** ROTATIONS ***
+
+tRotations :: [TetrisRotation]
+tRotations = [ TRot ( 1) ( 1) False
+             , TRot ( 1) (-1) True
+             , TRot (-1) (-1) False
+             , TRot (-1) ( 1) True
+             ]
+
+-- *** STATE STUFF ***
+-- OK, we break the abstraction in a few places in Main
+-- because replacing stuff one by one would be fucking clunky
+
 newState :: TetrisPiece -> TetrisBlockState
 newState tp = TBState 4 0 0 tp
-
-newGameState :: TetrisPiece -> TetrisPiece -> TetrisGameState
-newGameState tp1 tp2 = TGState (newState tp1) emptyBoard 1000 tp2 0
-
-gameStateLift :: (TetrisBlockState -> TetrisBlockState) -> TetrisGameState -> TetrisGameState
-gameStateLift fn tgst = tgst { blstate = fn $ blstate tgst }
-
-stateModify :: Int -> Int -> Int -> TetrisBlockState -> TetrisBlockState
-stateModify dx dy dr (TBState cx cy rot tp) = TBState (cx+dx) (cy+dy) (mod (rot+dr) 4) tp
 
 stateReplaceTP :: TetrisPiece -> TetrisBlockState -> TetrisBlockState
 stateReplaceTP tp (TBState cx cy r _) = TBState cx cy r tp
@@ -66,6 +97,16 @@ gStateReplaceNxt tpc tgs = tgs { pnext = tpc }
 gStateReplaceHID :: HandlerId -> TetrisGameState -> TetrisGameState
 gStateReplaceHID hid tgs = tgs { hID = hid }
 
+newGameState :: TetrisPiece -> TetrisPiece -> TetrisGameState
+newGameState tp1 tp2 = TGState (newState tp1) emptyBoard 1000 tp2 0
+
+-- lift a BlockState operation onto a GameState
+gameStateLift :: (TetrisBlockState -> TetrisBlockState) -> TetrisGameState -> TetrisGameState
+gameStateLift fn tgst = tgst { blstate = fn $ blstate tgst }
+
+stateModify :: Int -> Int -> Int -> TetrisBlockState -> TetrisBlockState
+stateModify dx dy dr (TBState cx cy rot tp) = TBState (cx+dx) (cy+dy) (mod (rot+dr) 4) tp
+
 -- unchecked moves
 stateMoveRight_ = stateModify ( 1) ( 0) ( 0)
 stateMoveLeft_  = stateModify (-1) ( 0) ( 0)
@@ -74,12 +115,12 @@ stateMoveUp_    = stateModify ( 0) (-1) ( 0)
 stateRotateCW_  = stateModify ( 0) ( 0) ( 1)
 stateRotateCCW_ = stateModify ( 0) ( 0) (-1)
 
--- check for out of bounds
+-- generalized move, but check for out of bounds
 bCheckedMove :: (TetrisBlockState -> TetrisBlockState) -> TetrisBlockState -> TetrisBlockState
 bCheckedMove fn oldB = if stateOffGrid newB then oldB else newB
   where newB = fn oldB
 
--- checked moves (borders only)
+-- checked moves (side and bottom borders only)
 stateMoveRight  = bCheckedMove stateMoveRight_
 stateMoveLeft   = bCheckedMove stateMoveLeft_
 stateMoveDown   = bCheckedMove stateMoveDown_
@@ -87,7 +128,7 @@ stateMoveUp     = bCheckedMove stateMoveUp_
 stateRotateCW   = bCheckedMove stateRotateCW_
 stateRotateCCW  = bCheckedMove stateRotateCCW_
 
--- check for out of bounds and collision
+-- check for out of bounds and collision -- this requires the whole game state
 checkedMove :: (TetrisBlockState -> TetrisBlockState) -> TetrisGameState -> TetrisGameState
 checkedMove fn oldS = if collided then oldS else newS
   where newB = fn $ blstate oldS
@@ -102,34 +143,6 @@ gStateMoveUp     = checkedMove stateMoveUp_
 gStateRotateCW   = checkedMove stateRotateCW_
 gStateRotateCCW  = checkedMove stateRotateCCW_
 
-pSquare = TPiece [(0,0),(1,0),(1,-1),(0,-1)]    [(0,0),(0,-1),(1,-1),(1,0)]   Red
-pLLeft  = TPiece [(0,0),(1,0),(0,-1),(0,-2)]    [(0,0),(-1,-1),(0,-2),(1,0)]  Green
-pLRight = TPiece [(0,0),(-1,0),(0,-1),(0,-2)]   [(0,0),(-1,0),(-1,-2),(1,-1)] Blue
-pZLeft  = TPiece [(0,0),(0,-1),(-1,-1),(-1,-2)] [(0,0),(-1,0),(-1,-2),(1,-1)] Yellow
-pZRight = TPiece [(0,0),(0,-1),(1,-1),(1,-2)]   [(0,0),(-1,-1),(1,-2),(1,0)]  Cyan
-pLine   = TPiece [(0,0),(0,-1),(0,-2),(0,-3)]   [(0,0),(-2,0),(0,-3),(1,0)]   Purple
-pTee    = TPiece [(0,0),(0,-1),(0,-2),(1,-1)]   [(0,0),(-1,-1),(0,-2),(1,0)]  White
-
-tPieces = [pSquare,pLLeft,pLRight,pZLeft,pZRight,pLine,pTee]
-
-tBlockToRGBd :: TetrisBlock -> (Double,Double,Double)
-tBlockToRGBd t = case t of
-                     Nil -> (0,0,0)
-                     Red -> (1,0,0)
-                     Green -> (0,1,0)
-                     Blue -> (0,0,1)
-                     Yellow -> (1,1,0)
-                     Cyan -> (0,1,1)
-                     Purple -> (1,0,1)
-                     White -> (1,1,1)
-
-tRotations :: [TetrisRotation]
-tRotations = [ TRot ( 1) ( 1) False
-             , TRot ( 1) (-1) True
-             , TRot (-1) (-1) False
-             , TRot (-1) ( 1) True
-             ]
-
 -- *** FUNCTIONS TO MANIPULATE BLOCKS AND STATES ***
 
 applyRotation :: TetrisRotation -> TransCoord -> Coord -> Coord
@@ -143,46 +156,20 @@ shiftRotateTetrisPiece (dx,dy) rot (TPiece sC rT b) = TPiece sC' [] b
         rotTetr = tRotations !! rot
         sC' = map (applyRotation rotTetr (dx+dtx,dy+dty)) sC
 
+-- take a state and apply the shift and rotation to the piece
 tetrisBlockStateToPiece :: TetrisBlockState -> TetrisPiece
 tetrisBlockStateToPiece (TBState cx cy rot tp) =
         shiftRotateTetrisPiece (cx,cy) rot tp
-
--- *** FUNCTIONS TO DETECT INTERACTION WITH EDGES ***
--- these functions detect interaction with edges of the board
-
-pieceOffBottom :: TetrisPiece -> Bool
-pieceOffBottom (TPiece sC _ _) = any outOfBottom sC
-
-stateOffBottom :: TetrisBlockState -> Bool
-stateOffBottom = pieceOffBottom.tetrisBlockStateToPiece
-
-pieceOffGrid :: TetrisPiece -> Bool
-pieceOffGrid (TPiece sC _ _) = any outOfBounds sC
-
-stateOffGrid :: TetrisBlockState -> Bool
-stateOffGrid = pieceOffGrid.tetrisBlockStateToPiece
-
--- is the piece below the bottom or off either side?
-outOfBounds :: Coord -> Bool
-outOfBounds (x,y) = x < 0 || x > 9 || y > 19
-
--- outOfBounds, including off the top of the board
-outOfBounds_ :: Coord -> Bool
-outOfBounds_ (x,y) = x < 0 || x > 9 || y < 0 || y > 19
-
--- off the bottom of the board
-outOfBottom :: Coord -> Bool
-outOfBottom (x,y) = y > 19
 
 -- *** FUNCTIONS TO MODIFY BOARD ***
 -- these functions modify the TetrisBoard,
 -- either by removing lines or by adding
 -- a piece or a state to an existing board
+-- placed pieces are represented by a two-dimensional array of blocks
 
 emptyLine :: TetrisLine
 emptyLine = DA.listArray (0,9) $ take 10 (repeat Nil)
 
--- placed pieces are represented by a two-dimensional array of blocks
 emptyBoard :: TetrisBoard
 emptyBoard = DA.listArray (0,19) $ take 20 (repeat emptyLine)
 
@@ -218,7 +205,8 @@ insertBlock tb (x,y) tboard = tboard // [(y,newX)]
         newX = oldX // [(x,tb)]
 
 addPieceToBoard :: TetrisBoard -> TetrisPiece -> TetrisBoard
-addPieceToBoard tboard (TPiece sC _ b) = foldr (insertBlock b) tboard sC
+addPieceToBoard tboard (TPiece sC _ b) = foldr (insertBlock b) tboard $ 
+                                               filter (not.outOfBounds_) sC
 
 addStateToBoard :: TetrisBoard -> TetrisBlockState -> TetrisBoard
 addStateToBoard tbd tbs = addPieceToBoard tbd $ tetrisBlockStateToPiece tbs
@@ -227,6 +215,30 @@ addStateToBoard tbd tbs = addPieceToBoard tbd $ tetrisBlockStateToPiece tbs
 -- these predicates are used to detect
 -- collisions with some combination of bottom,
 -- board, and sides
+
+pieceOffBottom :: TetrisPiece -> Bool
+pieceOffBottom (TPiece sC _ _) = any outOfBottom sC
+
+stateOffBottom :: TetrisBlockState -> Bool
+stateOffBottom = pieceOffBottom.tetrisBlockStateToPiece
+
+pieceOffGrid :: TetrisPiece -> Bool
+pieceOffGrid (TPiece sC _ _) = any outOfBounds sC
+
+stateOffGrid :: TetrisBlockState -> Bool
+stateOffGrid = pieceOffGrid.tetrisBlockStateToPiece
+
+-- is the piece below the bottom or off either side?
+outOfBounds :: Coord -> Bool
+outOfBounds (x,y) = x < 0 || x > 9 || y > 19
+
+-- outOfBounds, including off the top of the board
+outOfBounds_ :: Coord -> Bool
+outOfBounds_ (x,y) = x < 0 || x > 9 || y < 0 || y > 19
+
+-- off the bottom of the board
+outOfBottom :: Coord -> Bool
+outOfBottom (x,y) = y > 19
 
 lookupCoord :: TetrisBoard -> Coord -> TetrisBlock
 lookupCoord tboard (x,y) = (tboard ! y) ! x
