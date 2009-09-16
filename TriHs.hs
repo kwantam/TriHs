@@ -64,11 +64,11 @@ handleButtonPress w d b tHnd lLn lSn ev = do
       let mqd = modifyThenQueueDraw b d
       case (eventKeyChar ev,eventModifier ev,eventKeyName ev,hID gState == 0) of
            (Just 'x', [], _, False) -> mqd gStateRotateCW      -- only when not paused
-           (Just 'z', [], _, False) -> mqd gStateMoveBottom >> tHnd -- "
+           (Just 'z', [], _, False) -> mqd gStateMoveBottom >> tHnd >> return True -- "
            (_ ,   [],   "Up",False) -> mqd gStateRotateCCW          -- "
            (_,[],"XF86Forward",False) -> mqd gStateRotateCW         -- "
-           (_,[], "XF86Back",False) -> mqd gStateMoveBottom >> tHnd -- "
-           (_ ,   [], "Down",False) -> tHnd                         -- "
+           (_,[], "XF86Back",False) -> mqd gStateMoveBottom >> tHnd >> return True -- "
+           (_ ,   [], "Down",False) -> tHnd >> return True          -- "
            (_ ,   [], "Left",False) -> mqd gStateMoveLeft           -- "
            (_ ,   [],"Right",False) -> mqd gStateMoveRight          -- "
            (Just 'p', [],     _, _) -> togglePauseGame b tHnd       -- pause / unpause
