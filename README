@@ -1,0 +1,91 @@
+TriHs
+Copyright (C) 2009 Riad Wahby <rsw@jfet.org>
+
+TriHs is a Tetris-like game implemented in Haskell using Gtk2Hs, using
+the Cairo vector graphics library bindings.
+
+BUILDING
+
+To build TriHs, you will need the Glasgow Haskell Compiler.  In
+addition, make sure you have the following Haskell libraries installed:
+
+  - Graphics.UI.Gtk
+      aka Gtk2Hs.  I've tested it against v0.10.1
+
+  - Graphics.Rendering.Cairo
+      part of Gtk2Hs, but sometimes distributed separately
+      if you build Gtk2Hs, be sure that the Cairo bindings get built too!
+
+  - Control.Concurrent
+      I use an MVar to hold the game state.  I could have used an IOVar, but
+      there might be some crazy crap I decide to pull later involving MVars.
+
+Once you have these, just type "make."
+
+CONTROLS
+
+The following keys are defined:
+
+  - Alt-Q / Ctrl-Q / "Quit" button
+      Quit the game
+
+  - Ctrl-R
+      Restart
+
+  - Up
+      Rotate CCW
+
+  - x / XF86Forward (this is the "page forward" key)
+      Rotate CW
+
+  - z / XF86Back (this is the "page back" key)
+      Instant drop (drop all the way down and lock in place)
+
+  - Down / Left / Right
+      Move block down / left / right, respectively
+
+  - p
+      Pause / unpause game
+
+I put in the XF86Forward / XF86Back keys because they are really
+convenient on my Thinkpad T61 keyboard.  It should be relatively self-
+explanatory how to change the keybindings; see the "handleButtonPress"
+function in the Main module (TriHs.hs).
+
+CODE
+
+The code for TriHs is split into two pieces, the TriHsPieces module and
+the Main module.
+
+TriHsPieces contains only pure code that defines the game datatypes and
+piece and state transforms.  This is where the game-specific (non-UI)
+definitions live.
+
+Main contains two kinds of code: Render combinators for drawing in Cairo
+and impure (IO Monad) code for dealing with the user interface.
+
+In principle, this separation should make it relatively easy to rip the
+front end (Gtk2Hs/Cairo) off of the back end and build a new front end
+with another toolkit.
+
+The only front end-specific blemish in TriHsPieces is the "HandlerId"
+data in TetrisGameState.  To really separate these, TetrisGameState
+should either be defined in Main or wrapped in another datatype that is
+defined in Main.  However, it seemed to me that this would muddy up the
+code substantially for essentially no gain.
+
+UI
+
+Yes, it's not pretty.  I care more about implementing interesting
+extensions to the Tetris rules than I do about making a beautiful UI.
+"Unfortunately", this means there's no fancy game over screen or the
+like.  Feel free to make things prettier if you care; it should be
+pretty simple.
+
+LICENSE
+
+TriHs is free software.  It comes without any warranty, to to the extent
+permitted by applicable law.  You can redistribute it and/or modify it
+under the terms of the Do What The Fuck You Want To Public License,
+Version 2, as published by Sam Hocevar.  See the COPYING file or
+http://sam.zoy.org/wtfpl/COPYING for more details

@@ -63,23 +63,18 @@ handleButtonPress w d b tHnd lLn lSn ev = do
       gState <- readMVar b
       let mqd = modifyThenQueueDraw b d
       case (eventKeyChar ev,eventModifier ev,eventKeyName ev,hID gState == 0) of
-           (_ ,[],   "Up",False) -> mqd gStateRotateCCW
-           (_ ,[], "Down",False) -> mqd gStateMoveDown
-           (_ ,[], "Left",False) -> mqd gStateMoveLeft
-           (_ ,[],"Right",False) -> mqd gStateMoveRight
-           (Just 'r',[Control],_,_) -> do gst <- readMVar b    -- ctrl-r : restart game
-                                          let tHID = hID gst
-                                          timeoutRemove tHID
-                                          nGS <- genNewState
-                                          nHID <- timeoutAdd tHnd 1000
-                                          let nGS' = gStateReplaceHID nHID nGS
-                                          modifyMVar_ b (ioify $ \_ -> nGS')
-                                          labelSetText lLn "0"
-                                          labelSetText lSn "0"
-                                          widgetQueueDraw w
-                                          return True
+           (Just 'x', [], _, False) -> mqd gStateRotateCW      -- only when not paused
+           (Just 'z', [], _, False) -> mqd gStateMoveBottom >> tHnd -- "
+           (_ ,   [],   "Up",False) -> mqd gStateRotateCCW          -- "
+           (_,[],"XF86Forward",False) -> mqd gStateRotateCW         -- "
+           (_,[], "XF86Back",False) -> mqd gStateMoveBottom >> tHnd -- "
+           (_ ,   [], "Down",False) -> tHnd                         -- "
+           (_ ,   [], "Left",False) -> mqd gStateMoveLeft           -- "
+           (_ ,   [],"Right",False) -> mqd gStateMoveRight          -- "
+           (Just 'p', [],     _, _) -> togglePauseGame b tHnd       -- pause / unpause
+           (Just 'r',[Control],_,_) -> startNewGame b lLn lSn w tHnd  -- ctrl-r : restart game
            (Just 'q',[Control],_,_) -> widgetDestroy w >> return True -- quit
-           (_       ,_ ,_,_) -> return False -- otherwise don't handle this press
+           (_    ,    _ ,   _,   _) -> return False -- otherwise don't handle this press
 
 -- redraw the main window
 reDraw :: (Int,Int) -> TetrisGameState -> Render ()
@@ -98,6 +93,31 @@ preDraw (x,y) tgS = do
   let ddx = fromIntegral x / 3
   let ddy = fromIntegral y / 4
   drawTetrisPiece np ddx ddy 1 3 0
+
+-- pause game
+togglePauseGame :: MVar TetrisGameState -> IO Bool -> IO Bool
+togglePauseGame tgS tHnd = do
+           gst <- readMVar tgS
+           if hID gst == 0
+            then do nHID <- timeoutAdd tHnd $ gtime gst
+                    modifyMVar_ tgS (ioify $ \_ -> gst { hID = nHID })
+                    return True
+            else do timeoutRemove $ hID gst
+                    modifyMVar_ tgS (ioify $ \_ -> gst { hID = 0 })
+                    return True
+
+-- start a new game
+startNewGame :: MVar TetrisGameState -> Label -> Label -> Window -> IO Bool -> IO Bool
+startNewGame tgS lLn lSn w tHnd = do
+           gst <- readMVar tgS
+           timeoutRemove $ hID gst               -- remove old timeout
+           nGS <- genNewState                    -- new gamestate
+           nHID <- timeoutAdd tHnd 1000          -- add new timeout
+           modifyMVar_ tgS (ioify $ \_ -> nGS { hID = nHID }) -- save new state
+           labelSetText lLn "0"                  -- reset lines count
+           labelSetText lSn "0"                  -- reset score
+           widgetQueueDraw w                     -- redraw screen
+           return True
 
 -- oof this is so ugly and imperative
 -- this code makes me feel a little dirty
@@ -123,14 +143,15 @@ timerHandler daMain daPrev lLn lSc mtgS = do
                   then do oldNLines <- liftM read $ labelGetText lLn  -- hide some state
                           oldScore  <- liftM read $ labelGetText lSc  -- in the labels
                           let newNLines = oldNLines + nlines          -- tee hee
-                          let newScore = oldScore + (nlines ^ 2)
+                          let newScore = oldScore + ((2 * nlines) ^ 3)
                           labelSetText lLn $ show newNLines
                           labelSetText lSc $ show newScore
-                          if newNLines `div` 10 /= oldNLines `div` 10
+                          if (newNLines `div` 10) /= (oldNLines `div` 10)
                            then do let newTime = (gtime tgs') `div` 8 * 7 -- speed up!
                                    nHID <- timeoutAdd                -- new timeout
                                            (timerHandler daMain daPrev lLn lSc mtgS)
                                            newTime
+                                   timeoutRemove $ hID tgs'          -- remove old timeout
                                    return $ (tgs' { bdstate = tbd    -- update state
                                                   , gtime = newTime
                                                   , pnext = newpiece
@@ -199,8 +220,7 @@ main = do
   lScNum <- labelNew $ Just "0"
 
 -- game state stuff
-  nGS <- genNewState
-  dblock <- newMVar nGS
+  dblock <- newMVar $ newGameState pSquare pSquare
 
 -- setup containers with their contents
   set window [containerChild := hbx, containerBorderWidth := 10, windowTitle := "TriHs",
@@ -235,8 +255,7 @@ main = do
 
 -- timer handler
   let tHandler = timerHandler canvas preCan lLnNum lScNum dblock
-  tHandlID <- timeoutAdd tHandler 1000
-  modifyMVar_ dblock (ioify $ gStateReplaceHID tHandlID)  -- save timeout in game state
+  startNewGame dblock lLnNum lScNum window tHandler
 -- keyboard handler
   onKeyPress window $ handleButtonPress window canvas dblock tHandler lLnNum lScNum
 

@@ -29,24 +29,23 @@ data TetrisPiece = TPiece
       { segCoords :: [Coord]      -- coords of the boxes
       , rotTrans  :: [TransCoord] -- translation to apply before rotating
       , block     :: TetrisBlock  -- color of the blocks
-      }
-  deriving (Eq, Show)
+      } deriving (Eq, Show)
 
 data TetrisBlock = Nil | Red | Green | Blue | Yellow | Cyan | Purple | White
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Show)
 
 data TetrisRotation = TRot
       { kx :: Int                 -- X factor when rotating
       , ky :: Int                 -- Y factor when rotating
       , sw :: Bool                -- swap X and Y?
-      }
+      } deriving (Eq, Show)
 
 data TetrisBlockState = TBState
       { cx :: Int                 -- x position
       , cy :: Int                 -- y position
       , rot :: Int                -- rotation
       , tp :: TetrisPiece         -- which piece
-      }
+      } deriving (Eq, Show)
 
 data TetrisGameState = TGState
       { blstate :: TetrisBlockState
@@ -54,7 +53,7 @@ data TetrisGameState = TGState
       , gtime :: Int
       , pnext :: TetrisPiece
       , hID :: HandlerId
-      }
+      } deriving (Eq, Show)
 
 -- *** TETRIS PIECES ***
 
@@ -154,6 +153,13 @@ gStateMoveDown   = checkedMove stateMoveDown_
 gStateMoveUp     = checkedMove stateMoveUp_
 gStateRotateCW   = checkedMove stateRotateCW_
 gStateRotateCCW  = checkedMove stateRotateCCW_
+
+-- drop a block as far as it can go by repeatedly dropping it until it collides
+gStateMoveBottom :: TetrisGameState -> TetrisGameState
+gStateMoveBottom tgS = snd.head $ dropWhile fst $ 
+                       DL.iterate (gApplyCompare gStateMoveDown) (True,tgS)
+  where gApplyCompare fn (_, tgS) = (tgS /= tgS', tgS')
+          where tgS' = fn tgS
 
 -- *** FUNCTIONS TO MANIPULATE BLOCKS AND STATES ***
 
