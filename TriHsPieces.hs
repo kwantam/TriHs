@@ -31,7 +31,7 @@ data TetrisPiece = TPiece
       , block     :: TetrisBlock  -- color of the blocks
       } deriving (Eq, Show)
 
-data TetrisBlock = Nil | Red | Green | Blue | Yellow | Cyan | Purple | White
+data TetrisBlock = Nil | Red | Green | Blue | Yellow | Cyan | Purple | Orange
   deriving (Eq, Show)
 
 data TetrisRotation = TRot
@@ -57,13 +57,13 @@ data TetrisGameState = TGState
 
 -- *** TETRIS PIECES ***
 
-pSquare = TPiece [(0,0),(1,0),(1,-1),(0,-1)]    [(0,0),(0,-1),(1,-1),(1,0)]   Red
-pLLeft  = TPiece [(0,0),(1,0),(0,-1),(0,-2)]    [(0,0),(-1,-1),(0,-2),(1,0)]  Green
-pLRight = TPiece [(0,0),(-1,0),(0,-1),(0,-2)]   [(0,0),(-1,0),(-1,-2),(1,-1)] Blue
-pZLeft  = TPiece [(0,0),(0,-1),(-1,-1),(-1,-2)] [(0,0),(-1,0),(-1,-2),(1,-1)] Yellow
-pZRight = TPiece [(0,0),(0,-1),(1,-1),(1,-2)]   [(0,0),(-1,-1),(1,-2),(1,0)]  Cyan
-pLine   = TPiece [(0,0),(0,-1),(0,-2),(0,-3)]   [(0,0),(-2,0),(0,-3),(1,0)]   Purple
-pTee    = TPiece [(0,0),(0,-1),(0,-2),(1,-1)]   [(0,0),(-1,-1),(0,-2),(1,0)]  White
+pLine   = TPiece [(0,0),(0,-1),(0,-2),(0,-3)]   [(0,0),(-2,0),(0,-3),(1,0)]   Cyan    -- I
+pLRight = TPiece [(0,0),(-1,0),(0,-1),(0,-2)]   [(0,0),(-1,0),(-1,-2),(1,-1)] Blue    -- J
+pLLeft  = TPiece [(0,0),(1,0),(0,-1),(0,-2)]    [(0,0),(-1,-1),(0,-2),(1,0)]  Orange  -- L
+pSquare = TPiece [(0,0),(1,0),(1,-1),(0,-1)]    [(0,0),(0,-1),(1,-1),(1,0)]   Yellow  -- O
+pZLeft  = TPiece [(0,0),(0,-1),(-1,-1),(-1,-2)] [(0,0),(-1,0),(-1,-2),(1,-1)] Green   -- S
+pTee    = TPiece [(0,0),(0,-1),(0,-2),(1,-1)]   [(0,0),(-1,-1),(0,-2),(1,0)]  Purple  -- T
+pZRight = TPiece [(0,0),(0,-1),(1,-1),(1,-2)]   [(0,0),(-1,-1),(1,-2),(1,0)]  Red     -- Z
 
 tPieces = [pSquare,pLLeft,pLRight,pZLeft,pZRight,pLine,pTee]
 
@@ -77,8 +77,8 @@ tBlockToRGBd t = case t of
                      Blue -> (0,0,1)
                      Yellow -> (1,1,0)
                      Cyan -> (0,1,1)
-                     Purple -> (1,0,1)
-                     White -> (1,1,1)
+                     Purple -> (0.75,0,0.75)
+                     Orange -> (1,0.5,0)
 
 -- *** ROTATIONS ***
 
