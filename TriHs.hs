@@ -223,6 +223,7 @@ main = do
   dblock <- newMVar $ newGameState pSquare pSquare
 
 -- setup containers with their contents
+  set lLnNum [widgetCanFocus := True]
   set window [containerChild := hbx, containerBorderWidth := 10, windowTitle := "TriHs",
               windowDefaultHeight := 600, windowDefaultWidth := 400]
   set aframe [containerChild := canvas]
@@ -243,6 +244,7 @@ main = do
 -- set background color
   widgetModifyBg canvas StateNormal (Color 0 0 0)
   widgetModifyBg preCan StateNormal (Color 0 0 0)
+  widgetGrabFocus lLnNum  -- make sure space bar doesn't cause us to quit
   widgetShowAll window
 
 -- handlers for the main and preview windows
