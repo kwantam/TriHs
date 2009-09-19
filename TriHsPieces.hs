@@ -49,7 +49,7 @@ data TetrisBlockState = TBState
       , tp :: TetrisPiece         -- which piece
       } deriving (Eq, Show)
 
-data TetrisGameState = TGState
+data TetrisGameState = NaS | TGState
       { blstate :: TetrisBlockState
       , bdstate :: TetrisBoard
       , gtime :: Int
@@ -101,6 +101,9 @@ newState tp = TBState 4 0 0 tp
 
 stateReplaceTP :: TetrisPiece -> TetrisBlockState -> TetrisBlockState
 stateReplaceTP tp (TBState cx cy r _) = TBState cx cy r tp
+
+gStateReplaceTP :: TetrisPiece -> TetrisGameState -> TetrisGameState
+gStateReplaceTP = gameStateLift.stateReplaceTP
 
 gStateReplaceGtm :: Int -> TetrisGameState -> TetrisGameState
 gStateReplaceGtm gtm tgs = tgs { gtime = gtm }
