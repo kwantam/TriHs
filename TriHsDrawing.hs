@@ -51,21 +51,22 @@ setSourceTBlock t = setSourceRGB tr tg tb
   where (tr,tg,tb) = tBlockToRGBd t
 
 -- redraw the main window
-reDraw :: (Int,Int) -> TetrisGameState -> Render ()
-reDraw (x,y) tgS = do
+reDraw :: Bool -> (Int,Int) -> TetrisGameState -> Render ()
+reDraw doShad (x,y) tgS = do
   let (TBState cx cy rot tp) = blstate tgS
   let bstate = bdstate tgS
   let ddx = fromIntegral x / 10
   let ddy = fromIntegral y / 20
-  --let (TBState cx' cy' rot' tp') = blstate (gStateMoveBottom tgS)
+  let (TBState cx' cy' rot' tp') = blstate (gStateMoveBottom tgS)
   drawTetrisBoard ddx ddy bstate
-  --drawTetrisPiece (tp' { block = Gray }) ddx ddy cx' cy' rot'
+  if doShad then drawTetrisPiece (tp' { block = Gray }) ddx ddy cx' cy' rot' else return ()
   drawTetrisPiece tp ddx ddy cx cy rot
--- SHADOWS : uncomment the two lines above
 
 -- redraw the preview window
-preDraw :: (Int,Int) -> TetrisGameState -> Render ()
-preDraw (x,y) tgS = do
+-- this doesn't use the Bool, just put it there to
+-- keep the type signature the same as the one above
+preDraw :: Bool -> (Int,Int) -> TetrisGameState -> Render ()
+preDraw _ (x,y) tgS = do
   let np = pnext tgS
   let ddx = fromIntegral x / 3
   let ddy = fromIntegral y / 4

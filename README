@@ -27,31 +27,46 @@ CONTROLS
 
 The following keys are defined:
 
-  - Alt-Q / Ctrl-Q / "Quit" button
+  - Alt-p / Ctrl-p / "Quit" button
       Quit the game
+  - Ctrl-p
+      Pause the game
+  - Ctrl-s
+      Toggle shadows on/off (using this makes you a cheater!)
+  - Ctrl-1
+      Begin new 1-player game
+  - Ctrl-2
+      Begin new 2-player game
 
-  - Ctrl-R
-      Restart
+Player 1 controls:
+  - a - move left
+  - d - move right
+  - s - move down
+  - q - instant drop (hard)
+  - e - rotate clockwise
+  - w - rotate counterclockwise
+  - 1 - swap opponent's next brick (2 player game only)
 
-  - Up
-      Rotate CCW
+Player 2 controls:
+  - l - move left
+  - ' - move right
+  - ; - move down
+  - o - instant drop (hard)
+  - [ - rotate clockwise
+  - p - rotate counterclockwise
+  - 9 - swap opponent's next brick (2 player game only)
 
-  - x / XF86Forward (this is the "page forward" key)
-      Rotate CW
+Player 2 alt controls:
+  - Left, Right, Down arrows - move as directed
+  - Up arrow - rotate CCW
+  - XF86Forward - rotate CW
+  - XF86Back - Instant drop
+  - / - swap opponent's next brick (2 player game only)
 
-  - z / XF86Back (this is the "page back" key)
-      Instant drop (drop all the way down and lock in place)
-
-  - Down / Left / Right
-      Move block down / left / right, respectively
-
-  - p
-      Pause / unpause game
-
-I put in the XF86Forward / XF86Back keys because they are really
-convenient on my Thinkpad T61 keyboard.  It should be relatively self-
-explanatory how to change the keybindings; see the "handleButtonPress"
-function in the Main module (TriHs.hs).
+The alt controls are only there because they are really convenient on my
+Thinkpad T61 keyboard.  It should be relatively self-explanatory how to
+change the keybindings; see the "handleButtonPress" function in the Main
+module (TriHs.hs).
 
 CODE
 
@@ -63,15 +78,16 @@ piece and state transforms.  This is where the game-specific (non-UI)
 definitions live.
 
 TriHsDrawing contains all the Cairo-related code.  This is where the
-canvas redraw callbacks, plus board, piece, and block drawing functions
-live.  Everything in the Render monad lives here.
+canvas redraw callbacks and board, piece, and block drawing functions
+live.  Basically, everything in the Render monad lives here.
 
 Main contains impure (IO Monad) code for dealing with the user
-interface.
+interface, including creating the windows, handling events, updating
+mutable state, et cetera.
 
 In principle, this separation should make it relatively easy to rip the
-front end (Gtk2Hs/Cairo) off of the back end and build a new front end
-with another toolkit.
+whole front end (Gtk2Hs+Cairo) off of the back end and build a new one
+with another toolkit, or to swap out Cairo for OpenGL.
 
 The only front end-specific blemish in TriHsPieces is the "HandlerId"
 data in TetrisGameState.  To really separate these, TetrisGameState

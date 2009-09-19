@@ -29,8 +29,8 @@ import TriHsDrawing
 -- these functions are the GTK handlers and their various helpers
 
 handleButtonPress :: Window -> [MVar TetrisGameState] -> [DrawingArea] ->
-                     [IO Bool] -> Event -> IO Bool
-handleButtonPress win (mS1:mS2:[]) (dA1:pA1:dAs) (tH1:tHs) ev = do
+                     [IO Bool] -> MVar Bool -> Event -> IO Bool
+handleButtonPress win (mS1:mS2:[]) (dA1:pA1:dAs) (tH1:tHs) doShad ev = do
       g1State <- readMVar $ mS1
       g2State <- readMVar $ mS2
       let is2p = g2State /= NaS
@@ -52,23 +52,34 @@ handleButtonPress win (mS1:mS2:[]) (dA1:pA1:dAs) (tH1:tHs) ev = do
            (Just 'd',[],_,False,_) -> mqd1 gStateMoveRight
            (Just 's',[],_,False,_) -> tH1 >> return True
            (Just 'q',[],_,False,_) -> mqd1 gStateMoveBottom >> tH1 >> return True
-           (Just '~',[],_,False,False) -> genRandomPiece >>= \npiece ->
+           (Just '1',[],_,False,False) -> genRandomPiece >>= \npiece ->
                                           mqp2 $ gStateReplaceNxt npiece
            -- player 2 controls
-           (_,[],"XF86Forward",False,False) -> mqd2 gStateRotateCW
-           (_,[],"Up"         ,False,False) -> mqd2 gStateRotateCCW
-           (_,[],"Left"       ,False,False) -> mqd2 gStateMoveLeft
-           (_,[],"Right"      ,False,False) -> mqd2 gStateMoveRight
-           (_,[],"Down"       ,False,False) -> tH2 >> return True
-           (_,[],"XF86Back"   ,False,False) -> mqd2 gStateMoveBottom >> tH2 >> return True
+           (_,[],"XF86Forward",_,False) -> mqd2 gStateRotateCW
+           (_,[],"Up"         ,_,False) -> mqd2 gStateRotateCCW
+           (_,[],"Left"       ,_,False) -> mqd2 gStateMoveLeft
+           (_,[],"Right"      ,_,False) -> mqd2 gStateMoveRight
+           (_,[],"Down"       ,_,False) -> tH2 >> return True
+           (_,[],"XF86Back"   ,_,False) -> mqd2 gStateMoveBottom >> tH2 >> return True
            (Just '/',[],_     ,False,False) -> genRandomPiece >>= \npiece ->
                                                mqp1 $ gStateReplaceNxt npiece
+           (Just '[', [],_,_,False)  -> mqd2 gStateRotateCW
+           (Just 'p', [],_,_,False)  -> mqd2 gStateRotateCCW
+           (Just 'l', [],_,_,False)  -> mqd2 gStateMoveLeft
+           (Just '\'',[],_,_,False)  -> mqd2 gStateMoveRight
+           (Just ';', [],_,_,False)  -> tH2 >> return True
+           (Just 'o', [],_,_,False)  -> mqd2 gStateMoveBottom >> tH2 >> return True
+           (Just '9', [],_,False,False) -> genRandomPiece >>= \npiece ->
+                                           mqp1 $ gStateReplaceNxt npiece
            -- game controls
-           (Just 'p',[]       ,_,_,_) -> togglePauseAllGames [(mS1,tH1),(mS2,tH2)] >> return True
-           (Just 'd',[Control],_,_,_) -> widgetDestroy hBx >> return True
-           (Just '1',[Control],_,_,_) -> widgetDestroy hBx >> setupPlayers win hID1 hID2 False >> return True
-           (Just '2',[Control],_,_,_) -> widgetDestroy hBx >> setupPlayers win hID1 hID2 True >> return True
+           (Just 'p',[Control],_,_,_) -> togglePauseAllGames [(mS1,tH1),(mS2,tH2)] >> return True
+           (Just '1',[Control],_,_,_) -> widgetDestroy hBx >>
+                                         setupPlayers win hID1 hID2 False >> return True
+           (Just '2',[Control],_,_,_) -> widgetDestroy hBx >>
+                                         setupPlayers win hID1 hID2 True >> return True
            (Just 'q',[Control],_,_,_) -> widgetDestroy win >> return True
+           (Just 's',[Control],_,_,_) -> modifyMVar_ doShad (ioify not) >> 
+                                         widgetQueueDraw win >> return True
            -- otherwise don't handle this press
            (_,_,_,_,_) -> return False
 
@@ -88,7 +99,7 @@ togglePauseGame tgS tHnd = do
             then do nHID <- timeoutAdd tHnd $ gtime gst
                     modifyMVar_ tgS (ioify $ \_ -> gst { hID = nHID })
                     return True
-            else do timeoutRemove $ hID gst
+            else do safeTimeoutRemove $ hID gst
                     modifyMVar_ tgS (ioify $ \_ -> gst { hID = 0 })
                     return True
 
@@ -96,7 +107,7 @@ togglePauseGame tgS tHnd = do
 startNewGame :: MVar TetrisGameState -> Label -> Label -> Window -> IO Bool -> IO Bool
 startNewGame tgS lLn lSn w tHnd = do
            gst <- readMVar tgS
-           timeoutRemove $ hID gst               -- remove old timeout
+           safeTimeoutRemove $ hID gst               -- remove old timeout; OK if this fails
            nGS <- genNewState                    -- new gamestate
            nHID <- timeoutAdd tHnd 1000          -- add new timeout
            modifyMVar_ tgS (ioify $ \_ -> nGS { hID = nHID }) -- save new state
@@ -117,7 +128,8 @@ timerHandler daMain daPrev lLn lSc mtgS = do
              let (nlines,tbd) = removeCompleteLines $ bdstate tgs' -- any complete lines?
              (tgs'',retval) <-                                     -- OK, now this is ugly
               if (tbd ! 0) /= emptyLine -- if there is anything in the top line,
-               then                     -- game over!
+               then do                  -- game over!
+                 safeTimeoutRemove $ hID tgs'           -- cancel interrupt
                  return $ (tgs' { bdstate = tbd         -- update game state
                                 , gtime = 1000
                                 , pnext = newpiece
@@ -137,7 +149,7 @@ timerHandler daMain daPrev lLn lSc mtgS = do
                                    nHID <- timeoutAdd                -- new timeout
                                            (timerHandler daMain daPrev lLn lSc mtgS)
                                            newTime
-                                   timeoutRemove $ hID tgs'          -- remove old timeout
+                                   safeTimeoutRemove $ hID tgs'          -- remove old timeout
                                    return $ (tgs' { bdstate = tbd    -- update state
                                                   , gtime = newTime
                                                   , pnext = newpiece
@@ -165,14 +177,18 @@ genNewState = do
            tp2 <- genRandomPiece
            return $ newGameState tp1 tp2
 
-canvasHandler :: DrawingArea -> ((Int,Int) -> TetrisGameState -> Render ())
-                 -> MVar TetrisGameState -> Event -> IO Bool
-canvasHandler cname fn st ev = do
+canvasHandler :: DrawingArea -> (Bool -> (Int,Int) -> TetrisGameState -> Render ())
+                 -> MVar TetrisGameState -> MVar Bool -> Event -> IO Bool
+canvasHandler cname fn st shSt ev = do
            dwin <- widgetGetDrawWindow cname
            csize <- widgetGetSize cname
            cblock <- readMVar st
-           renderWithDrawable dwin (fn csize cblock)
+           doShad <- readMVar shSt
+           renderWithDrawable dwin (fn doShad csize cblock)
            return $ eventSent ev
+
+safeTimeoutRemove :: HandlerId -> IO ()
+safeTimeoutRemove hndId = if hndId /= 0 then timeoutRemove hndId else return ()
 
 -- *** MVAR UTILITY FUNCTIONS ***
 
@@ -189,8 +205,8 @@ modifyThenQueueDraw b d fn = modifyMVar_ b (ioify fn) >> widgetQueueDraw d >> re
 setupPlayers :: Window -> HandlerId -> HandlerId -> Bool -> IO ()
 setupPlayers window t1 t2 is2p = do
 -- a whole bunch of GTK stuff
-           timeoutRemove t1
-           timeoutRemove t2
+           safeTimeoutRemove t1
+           safeTimeoutRemove t2
 
            button <- buttonNewWithMnemonic "  _Quit  "
            hbx    <- hBoxNew False 0
@@ -204,6 +220,7 @@ setupPlayers window t1 t2 is2p = do
            lLnNum <- labelNew $ Just "0"
            lScNum <- labelNew $ Just "0"
 
+-- make second set if necessary
            aframe2 <- if is2p then aspectFrameNew 0.5 0.5 (Just 0.5) else return aframe
            afram22 <- if is2p then aspectFrameNew 0.5 0.5 (Just 0.75) else return afram2
            canvas2 <- if is2p then drawingAreaNew else return canvas
@@ -218,6 +235,7 @@ setupPlayers window t1 t2 is2p = do
            mg2State <- if is2p 
                         then newMVar $ newGameState pSquare pSquare
                         else newMVar NaS
+           shadState <- newMVar False
 
 -- setup containers with their contents
            set lLnNum [widgetCanFocus := True]
@@ -225,12 +243,14 @@ setupPlayers window t1 t2 is2p = do
                        windowDefaultHeight := 600, windowDefaultWidth := 480]
            set aframe [containerChild := canvas]
            set afram2 [containerChild := preCan]
-           let aspectRatio = if is2p then 1.6 else 0.8
+           let aspectRatio = if is2p then 1.4 else 0.75
            windowSetGeometryHints window (Just aframe) (Just (300,300)) (Just (1000,1000))
                                          Nothing Nothing (Just (aspectRatio,aspectRatio))
-           set aframe2 [containerChild := canvas2]
-           set afram22 [containerChild := preCan2]
--- hbox
+           if is2p then do set aframe2 [containerChild := canvas2]
+                           set afram22 [containerChild := preCan2]
+                   else return ()
+
+-- main hbox
            boxPackStart hbx aframe PackGrow 0
            boxPackStart hbx vbx PackNatural 0
            if is2p then boxPackStart hbx aframe2 PackGrow 0 else return ()
@@ -253,12 +273,16 @@ setupPlayers window t1 t2 is2p = do
 -- set background color
            let canvases = if is2p then [canvas,preCan,canvas2,preCan2] else [canvas,preCan]
            mapM (\x -> widgetModifyBg x StateNormal (Color 0 0 0)) canvases
-           widgetGrabFocus lLnNum  -- make sure space bar doesn't cause us to quit
+
+-- make sure space bar doesn't cause us to quit
+           widgetGrabFocus lLnNum  
            widgetShowAll window
 
 -- handlers for the main and preview windows
-           let exposeStuff = zip3 canvases [mg1State,mg1State,mg2State,mg2State] $ cycle [reDraw,preDraw]
-           mapM (\(c,s,d) -> onExpose c $ canvasHandler c d s) exposeStuff
+           let exposeStuff = zip3 canvases 
+                                  [mg1State,mg1State,mg2State,mg2State] $
+                                  cycle [reDraw,preDraw]
+           mapM (\(c,s,d) -> onExpose c $ canvasHandler c d s shadState) exposeStuff
 
 -- quit button
            onClicked button (widgetDestroy window)
@@ -266,20 +290,23 @@ setupPlayers window t1 t2 is2p = do
 
 -- timer handler
            let tH1 = timerHandler canvas preCan lLnNum lScNum mg1State
-           let tH2 = if is2p then timerHandler canvas2 preCan2 lLnNum2 lScNum2 mg2State else return False
+           let tH2 = if is2p then timerHandler canvas2 preCan2 lLnNum2 lScNum2 mg2State
+                             else return False
            startNewGame mg1State lLnNum lScNum window tH1
            if is2p then startNewGame mg2State lLnNum2 lScNum2 window tH2 else return False
+
 -- keyboard handler
            let handlers = if is2p then [tH1,tH2] else [tH1]
-           kHandler <- onKeyPress window $ handleButtonPress window [mg1State,mg2State] canvases handlers
+           kHandler <- onKeyPress window $
+                       handleButtonPress window [mg1State,mg2State] canvases handlers shadState
            onDestroy hbx $ signalDisconnect kHandler
            return ()
 
 -- *** MAIN ***
--- just kick off 1-player game
+-- kick off 1-player game
 main :: IO ()
 main = do
-  initGUI
-  window <- windowNew
-  setupPlayers window 0 0 False
-  mainGUI
+           initGUI
+           window <- windowNew
+           setupPlayers window 0 0 False
+           mainGUI
