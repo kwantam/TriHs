@@ -3,6 +3,8 @@
  - 
 -- This file is part of TriHs
 --
+-- $Id$
+--
 --  TriHs is free software.  It comes without any warranty, to
 --  to the extent permitted by applicable law.  You can redistribute it
 --  and/or modify it under the terms of the Do What The Fuck You Want To
@@ -13,45 +15,15 @@
 
 module Main where
 
-import Data.Array as DA
+import Data.Array ((!))
 import Graphics.UI.Gtk hiding (fill)
-import Graphics.Rendering.Cairo
+import Graphics.Rendering.Cairo (Render(..))
 import Graphics.UI.Gtk.Gdk.Events
 import Control.Concurrent.MVar
 import Control.Monad (liftM,mapM)
 import System.Random
 import TriHsPieces
-
--- *** GENERAL DRAWING FUNCTIONS ***
--- these functions are for drawing the various tetris pieces in Cairo
-
-drawTetrisBoard :: Double -> Double -> TetrisBoard -> Render ()
-drawTetrisBoard dunitx dunity tb = 
-            mapM (drawTetrisLine dunitx dunity) (DA.assocs tb) >> return ()
-
-drawTetrisLine :: Double -> Double -> (Int,TetrisLine) -> Render ()
-drawTetrisLine dunitx dunity (y,lx) = mapM drawFromLine (DA.assocs lx) >> return ()
-  where drawFromLine (x,tbl) = drawTetrisBlock tbl dunitx dunity x y
-
-drawTetrisBlock :: TetrisBlock -> Double -> Double -> Int -> Int -> Render ()
-drawTetrisBlock tb dunitx dunity cx cy =
-  if tb == Nil then return () else do
-  setSourceTBlock tb
-  rectangle (dunitx / 20 + dunitx * fromIntegral cx) 
-            (dunity / 20 + dunity * fromIntegral cy)
-            (dunitx - dunitx / 10)
-            (dunity - dunity / 10)
-  fill
-
-drawTetrisPiece :: TetrisPiece -> Double -> Double -> Int -> Int -> Int -> Render ()
-drawTetrisPiece tp dunitx dunity cx cy rot = 
-  mapM (\(x,y) -> drawTetrisBlock tb dunitx dunity x y) sC >> return ()
-    where (TPiece sC _ tb) = shiftRotateTetrisPiece (cx,cy) rot tp
-
--- set color based on TetrisBlock type
-setSourceTBlock :: TetrisBlock -> Render ()
-setSourceTBlock t = setSourceRGB tr tg tb
-  where (tr,tg,tb) = tBlockToRGBd t
+import TriHsDrawing
 
 -- *** HANDLER FUNCTIONS ***
 -- these functions are the GTK handlers and their various helpers
@@ -75,24 +47,6 @@ handleButtonPress w d b tHnd lLn lSn ev = do
            (Just 'r',[Control],_,_) -> startNewGame b lLn lSn w tHnd  -- ctrl-r : restart game
            (Just 'q',[Control],_,_) -> widgetDestroy w >> return True -- quit
            (_    ,    _ ,   _,   _) -> return False -- otherwise don't handle this press
-
--- redraw the main window
-reDraw :: (Int,Int) -> TetrisGameState -> Render ()
-reDraw (x,y) tgS = do
-  let (TBState cx cy rot tp) = blstate tgS
-  let bstate = bdstate tgS
-  let ddx = fromIntegral x / 10
-  let ddy = fromIntegral y / 20
-  drawTetrisBoard ddx ddy bstate
-  drawTetrisPiece tp ddx ddy cx cy rot
-
--- redraw the preview window
-preDraw :: (Int,Int) -> TetrisGameState -> Render ()
-preDraw (x,y) tgS = do
-  let np = pnext tgS
-  let ddx = fromIntegral x / 3
-  let ddy = fromIntegral y / 4
-  drawTetrisPiece np ddx ddy 1 3 0
 
 -- pause game
 togglePauseGame :: MVar TetrisGameState -> IO Bool -> IO Bool
@@ -188,8 +142,7 @@ canvasHandler cname fn st ev = do
            renderWithDrawable dwin (fn csize cblock)
            return $ eventSent ev
 
--- *** STATE MODIFICATION FUNCTIONS ***
--- these functions are for working with MVars
+-- *** MVAR UTILITY FUNCTIONS ***
 
 ioify :: (a -> b) -> (a -> IO b)
 ioify y = \x -> return $ y x

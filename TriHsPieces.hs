@@ -3,6 +3,8 @@
  - 
 -- This file is part of TriHs
 --
+-- $Id$
+--
 --  TriHs is free software.  It comes without any warranty, to
 --  to the extent permitted by applicable law.  You can redistribute it
 --  and/or modify it under the terms of the Do What The Fuck You Want To
@@ -31,7 +33,7 @@ data TetrisPiece = TPiece
       , block     :: TetrisBlock  -- color of the blocks
       } deriving (Eq, Show)
 
-data TetrisBlock = Nil | Red | Green | Blue | Yellow | Cyan | Purple | Orange
+data TetrisBlock = Nil | Red | Green | Blue | Yellow | Cyan | Purple | Orange | Gray
   deriving (Eq, Show)
 
 data TetrisRotation = TRot
@@ -79,6 +81,7 @@ tBlockToRGBd t = case t of
                      Cyan -> (0,1,1)
                      Purple -> (0.75,0,0.75)
                      Orange -> (1,0.5,0)
+                     Gray -> (0.3,0.3,0.3)
 
 -- *** ROTATIONS ***
 

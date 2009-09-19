@@ -1,4 +1,5 @@
 TriHs
+$Id$
 Copyright (C) 2009 Riad Wahby <rsw@jfet.org>
 
 TriHs is a Tetris-like game implemented in Haskell using Gtk2Hs, using
@@ -54,15 +55,19 @@ function in the Main module (TriHs.hs).
 
 CODE
 
-The code for TriHs is split into two pieces, the TriHsPieces module and
-the Main module.
+The code for TriHs is split into three pieces: TriHsPieces,
+TriHsDrawing, and the Main module.
 
 TriHsPieces contains only pure code that defines the game datatypes and
 piece and state transforms.  This is where the game-specific (non-UI)
 definitions live.
 
-Main contains two kinds of code: Render combinators for drawing in Cairo
-and impure (IO Monad) code for dealing with the user interface.
+TriHsDrawing contains all the Cairo-related code.  This is where the
+canvas redraw callbacks, plus board, piece, and block drawing functions
+live.  Everything in the Render monad lives here.
+
+Main contains impure (IO Monad) code for dealing with the user
+interface.
 
 In principle, this separation should make it relatively easy to rip the
 front end (Gtk2Hs/Cairo) off of the back end and build a new front end
