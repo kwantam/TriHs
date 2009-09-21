@@ -240,17 +240,19 @@ addStateToBoard tbd tbs = addPieceToBoard tbd $ tetrisBlockStateToPiece tbs
 -- collisions with some combination of bottom,
 -- board, and sides
 
-pieceOffBottom :: TetrisPiece -> Bool
-pieceOffBottom (TPiece sC _ _) = any outOfBottom sC
+pieceBoundCheck :: (Coord -> Bool) -> TetrisPiece -> Bool
+pieceBoundCheck fn (TPiece sC _ _) = any fn sC
 
-stateOffBottom :: TetrisBlockState -> Bool
-stateOffBottom = pieceOffBottom.tetrisBlockStateToPiece
+pieceOffBottom = pieceBoundCheck outOfBottom
+pieceOffGrid = pieceBoundCheck outOfBounds
+pieceAboveBounds = pieceBoundCheck aboveBounds
 
-pieceOffGrid :: TetrisPiece -> Bool
-pieceOffGrid (TPiece sC _ _) = any outOfBounds sC
+stateBoundCheck :: (TetrisPiece -> Bool) -> TetrisBlockState -> Bool
+stateBoundCheck fn = fn.tetrisBlockStateToPiece
 
-stateOffGrid :: TetrisBlockState -> Bool
-stateOffGrid = pieceOffGrid.tetrisBlockStateToPiece
+stateOffBottom = stateBoundCheck pieceOffBottom
+stateOffGrid = stateBoundCheck pieceOffGrid
+stateAboveBounds = stateBoundCheck pieceAboveBounds
 
 -- is the piece below the bottom or off either side?
 outOfBounds :: Coord -> Bool
@@ -259,6 +261,10 @@ outOfBounds (x,y) = x < 0 || x > 9 || y > 19
 -- outOfBounds, including off the top of the board
 outOfBounds_ :: Coord -> Bool
 outOfBounds_ (x,y) = x < 0 || x > 9 || y < 0 || y > 19
+
+-- aboveBounds -- off the top of the board
+aboveBounds :: Coord -> Bool
+aboveBounds (_,y) = y < 0
 
 -- off the bottom of the board
 outOfBottom :: Coord -> Bool

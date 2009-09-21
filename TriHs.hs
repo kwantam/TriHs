@@ -127,7 +127,7 @@ timerHandler daMain daPrev lLn lSc mtgS = do
              newpiece <- genRandomPiece                            -- first, next piece
              let (nlines,tbd) = removeCompleteLines $ bdstate tgs' -- any complete lines?
              (tgs'',retval) <-                                     -- OK, now this is ugly
-              if (tbd ! 0) /= emptyLine -- if there is anything in the top line,
+              if stateAboveBounds $ blstate tgs -- if the piece that collided is off the top
                then do                  -- game over!
                  safeTimeoutRemove $ hID tgs'           -- cancel interrupt
                  return $ (tgs' { bdstate = tbd         -- update game state
