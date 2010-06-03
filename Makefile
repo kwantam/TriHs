@@ -1,8 +1,8 @@
 ## Copyright (C) 2009 Riad S Wahby <rsw@jfet.org>
 ## 
-## This file is part of QDkae
+## This file is part of TriHs
 ##
-##  QDkae is free software.  It comes without any warranty, to
+##  TriHs is free software.  It comes without any warranty, to
 ##  to the extent permitted by applicable law.  You can redistribute it
 ##  and/or modify it under the terms of the Do What The Fuck You Want To
 ##  Public License, Version 2, as published by Sam Hocevar.  See
