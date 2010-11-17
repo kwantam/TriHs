@@ -16,7 +16,7 @@
 module Main where
 
 import Data.Array ((!))
-import Graphics.UI.Gtk hiding (fill)
+import Graphics.UI.Gtk hiding (eventModifier, eventKeyName, eventSent)
 import Graphics.Rendering.Cairo (Render(..))
 import Graphics.UI.Gtk.Gdk.Events
 import Control.Concurrent.MVar
