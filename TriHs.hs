@@ -52,7 +52,7 @@ handleButtonPress win (mS1:mS2:[]) (dA1:pA1:dAs) (tH1:tHs) doShad ev = do
            (Just 'd',[],_,False,_) -> mqd1 gStateMoveRight
            (Just 's',[],_,False,_) -> tH1 >> return True
            (Just 'q',[],_,False,_) -> mqd1 gStateMoveBottom >> tH1 >> return True
-           (Just '1',[],_,False,False) -> genRandomPiece >>= \npiece ->
+           (Just 'f',[],_,False,False) -> genRandomPiece >>= \npiece ->
                                           mqp2 $ gStateReplaceNxt npiece
            -- player 2 controls
            (_,[],"XF86Forward",_,False) -> mqd2 gStateRotateCW
@@ -63,13 +63,13 @@ handleButtonPress win (mS1:mS2:[]) (dA1:pA1:dAs) (tH1:tHs) doShad ev = do
            (_,[],"XF86Back"   ,_,False) -> mqd2 gStateMoveBottom >> tH2 >> return True
            (Just '/',[],_     ,False,False) -> genRandomPiece >>= \npiece ->
                                                mqp1 $ gStateReplaceNxt npiece
-           (Just '[', [],_,_,False)  -> mqd2 gStateRotateCW
-           (Just 'p', [],_,_,False)  -> mqd2 gStateRotateCCW
-           (Just 'l', [],_,_,False)  -> mqd2 gStateMoveLeft
-           (Just '\'',[],_,_,False)  -> mqd2 gStateMoveRight
-           (Just ';', [],_,_,False)  -> tH2 >> return True
-           (Just 'o', [],_,_,False)  -> mqd2 gStateMoveBottom >> tH2 >> return True
-           (Just '9', [],_,False,False) -> genRandomPiece >>= \npiece ->
+           (Just '=', [],_,_,False)  -> mqd2 gStateRotateCW
+           (Just '0', [],_,_,False)  -> mqd2 gStateRotateCCW
+           (Just 'p', [],_,_,False)  -> mqd2 gStateMoveLeft
+           (Just ']', [],_,_,False)  -> mqd2 gStateMoveRight
+           (Just '[', [],_,_,False)  -> tH2 >> return True
+           (Just '-', [],_,_,False)  -> mqd2 gStateMoveBottom >> tH2 >> return True
+           (Just 'o', [],_,False,False) -> genRandomPiece >>= \npiece ->
                                            mqp1 $ gStateReplaceNxt npiece
            -- game controls
            (Just 'p',[Control],_,_,_) -> togglePauseAllGames [(mS1,tH1),(mS2,tH2)] >> return True
