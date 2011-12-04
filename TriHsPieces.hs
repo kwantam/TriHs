@@ -18,6 +18,7 @@ module TriHsPieces where
 import Data.Array as DA
 import Data.List as DL
 import System.Glib.MainLoop (HandlerId(..))
+import Graphics.UI.Gtk (DrawingArea(..), Label(..))
 
 -- *** DATA TYPES ***
 
@@ -49,12 +50,22 @@ data TetrisBlockState = TBState
       , tp :: TetrisPiece         -- which piece
       } deriving (Eq, Show)
 
+instance Show DrawingArea where
+    show _ = "<Gtk drawing area>"
+
+instance Show Label where
+    show _ = "<Gtk label>"
+
 data TetrisGameState = NaS | TGState
       { blstate :: TetrisBlockState
       , bdstate :: TetrisBoard
       , gtime :: Int
       , pnext :: TetrisPiece
       , hID :: HandlerId
+      , can :: DrawingArea
+      , pcan :: DrawingArea
+      , lLNum :: Label
+      , lScore :: Label
       } deriving (Eq, Show)
 
 -- *** TETRIS PIECES ***
@@ -114,8 +125,8 @@ gStateReplaceNxt tpc tgs = tgs { pnext = tpc }
 gStateReplaceHID :: HandlerId -> TetrisGameState -> TetrisGameState
 gStateReplaceHID hid tgs = tgs { hID = hid }
 
-newGameState :: TetrisPiece -> TetrisPiece -> TetrisGameState
-newGameState tp1 tp2 = TGState (newState tp1) emptyBoard 1000 tp2 0
+newGameState :: TetrisPiece -> TetrisPiece -> DrawingArea -> DrawingArea -> Label -> Label -> TetrisGameState
+newGameState tp1 tp2 can pcan lLn lSc = TGState (newState tp1) emptyBoard 1000 tp2 0 can pcan lLn lSc
 
 -- lift a BlockState operation onto a GameState
 gameStateLift :: (TetrisBlockState -> TetrisBlockState) -> TetrisGameState -> TetrisGameState

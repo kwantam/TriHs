@@ -107,8 +107,8 @@ togglePauseGame tgS tHnd = do
 startNewGame :: MVar TetrisGameState -> Label -> Label -> Window -> IO Bool -> IO Bool
 startNewGame tgS lLn lSn w tHnd = do
            gst <- readMVar tgS
-           safeTimeoutRemove $ hID gst               -- remove old timeout; OK if this fails
-           nGS <- genNewState                    -- new gamestate
+           safeTimeoutRemove $ hID gst           -- remove old timeout; OK if this fails
+           nGS <- genNewState gst                -- new gamestate
            nHID <- timeoutAdd tHnd 1000          -- add new timeout
            modifyMVar_ tgS (ioify $ \_ -> nGS { hID = nHID }) -- save new state
            labelSetText lLn "0"                  -- reset lines count
@@ -118,24 +118,30 @@ startNewGame tgS lLn lSn w tHnd = do
 
 -- oof this is so ugly and imperative
 -- this code makes me feel a little dirty
-timerHandler :: DrawingArea -> DrawingArea -> Label -> Label -> MVar TetrisGameState -> IO Bool
-timerHandler daMain daPrev lLn lSc mtgS = do
+timerHandler :: MVar TetrisGameState -> MVar TetrisGameState -> IO Bool
+timerHandler mtgS mtgS2 = do
            tgs <- readMVar mtgS                     -- read game state
+           tgs2 <- readMVar mtgS2
+           let daMain = can tgs
+           let daPrev = pcan tgs
+           let lLn = lLNum tgs
+           let lSc = lScore tgs
            let (collided,tgs') = stateDropPiece tgs -- drop the piece, detect collisions, &c
            if collided  -- if we got a collision, we have some splainin to do
             then do 
              newpiece <- genRandomPiece                            -- first, next piece
              let (nlines,tbd) = removeCompleteLines $ bdstate tgs' -- any complete lines?
-             (tgs'',retval) <-                                     -- OK, now this is ugly
+             (tgs'',tgs2',retval) <-                               -- OK, now this is ugly
               if stateAboveBounds $ blstate tgs -- if the piece that collided is off the top
                then do                  -- game over!
                  safeTimeoutRemove $ hID tgs'           -- cancel interrupt
-                 return $ (tgs' { bdstate = tbd         -- update game state
-                                , gtime = 1000
-                                , pnext = newpiece
-                                , hID = 0 -- paused
-                                , blstate = (TBState 4 (-1) 0 pSquare) } ,
-                           False )                      -- do not restart timer
+                 return $ ( tgs' { bdstate = tbd        -- update game state
+                                 , gtime = 1000
+                                 , pnext = newpiece
+                                 , hID = 0 -- paused
+                                 , blstate = (TBState 4 (-1) 0 pSquare) }
+                          , tgs2                        -- no update to 2p state
+                          , False )                     -- do not restart timer
                else
                  if (nlines > 0)  -- did we make any new lines this time?
                   then do oldNLines <- liftM read $ labelGetText lLn  -- hide some state
@@ -144,22 +150,39 @@ timerHandler daMain daPrev lLn lSc mtgS = do
                           let newScore = oldScore + ((2 * nlines) ^ 3)
                           labelSetText lLn $ show newNLines
                           labelSetText lSc $ show newScore
-                          if (newNLines `div` 10) /= (oldNLines `div` 10)
-                           then do let newTime = (gtime tgs') `div` 8 * 7 -- speed up!
-                                   nHID <- timeoutAdd                -- new timeout
-                                           (timerHandler daMain daPrev lLn lSc mtgS)
+                          -- increase the speed after every 10 lines
+                          -- if it's two-player, your lines increase the opponent's speed
+                          case ((newNLines `div` 10) /= (oldNLines `div` 10),tgs2) of
+                            (True,NaS) -> do    -- 1 player game
+                                   let newTime = (gtime tgs') `div` 6 * 5 -- speed up!
+                                   nHID <- timeoutAdd                 -- new timeout
+                                           (timerHandler mtgS mtgS2)
                                            newTime
-                                   safeTimeoutRemove $ hID tgs'          -- remove old timeout
-                                   return $ (tgs' { bdstate = tbd    -- update state
-                                                  , gtime = newTime
-                                                  , pnext = newpiece
-                                                  , hID = nHID } ,
-                                             False ) -- don't restart the old timeout
-                           else return $ ( tgs' { pnext = newpiece   -- else just update
-                                                , bdstate = tbd } ,  -- the state
-                                           True )                  -- and restart timout
-                  else return ( tgs' { pnext = newpiece } , True ) -- no new lines
+                                   safeTimeoutRemove $ hID tgs'       -- remove old timeout
+                                   return $ ( tgs' { bdstate = tbd    -- update state
+                                                   , gtime = newTime
+                                                   , pnext = newpiece
+                                                   , hID = nHID }
+                                            , tgs2                    -- no update to 2p state
+                                            , False ) -- don't restart the old timeout
+                            (True, _ ) -> do    -- 2 player game
+                                   let newTime = (gtime tgs2) `div` 6 * 5 -- speed up other player
+                                   nHID <- timeoutAdd                     -- add new timeout for other player
+                                           (timerHandler mtgS2 mtgS)
+                                           newTime
+                                   safeTimeoutRemove $ hID tgs2           -- remove old timeout
+                                   return $ ( tgs' { bdstate = tbd
+                                                   , pnext = newpiece }
+                                            , tgs2 { gtime = newTime      -- update other player's time state
+                                                   , hID = nHID }
+                                            , True )                      -- restart timer
+                            (False, _) -> return $ ( tgs' { pnext = newpiece  -- else just update
+                                                          , bdstate = tbd }   -- the state
+                                                   , tgs2                     -- no update to 2p state
+                                                   , True )                   -- and restart timout
+                  else return ( tgs' { pnext = newpiece } , tgs2, True ) -- no new lines
              modifyMVar_ mtgS (ioify $ (\_ -> tgs''))        -- swap in new game state
+             modifyMVar_ mtgS2 (ioify $ (\_ -> tgs2'))
              widgetQueueDraw daMain                          -- redraw main display
              widgetQueueDraw daPrev                          -- redraw preview display
              return retval                                   -- done
@@ -171,11 +194,12 @@ timerHandler daMain daPrev lLn lSc mtgS = do
 genRandomPiece :: IO TetrisPiece
 genRandomPiece = (\x -> return $ tPieces !! x) =<< randomRIO (0,6)
 
-genNewState :: IO TetrisGameState
-genNewState = do
+genNewState :: TetrisGameState -> IO TetrisGameState
+genNewState tgs = do
            tp1 <- genRandomPiece
            tp2 <- genRandomPiece
-           return $ newGameState tp1 tp2
+           return $ tgs { blstate = (newState tp1)
+                        , pnext = tp2 }
 
 canvasHandler :: DrawingArea -> (Bool -> (Int,Int) -> TetrisGameState -> Render ())
                  -> MVar TetrisGameState -> MVar Bool -> Event -> IO Bool
@@ -230,13 +254,6 @@ setupPlayers window t1 t2 is2p = do
            lLnNum2 <- if is2p then labelNew $ Just "0" else return lLnNum
            lScNum2 <- if is2p then labelNew $ Just "0" else return lScNum
 
--- game state stuff
-           mg1State <- newMVar $ newGameState pSquare pSquare
-           mg2State <- if is2p 
-                        then newMVar $ newGameState pSquare pSquare
-                        else newMVar NaS
-           shadState <- newMVar False
-
 -- setup containers with their contents
            set lLnNum [widgetCanFocus := True]
            set window [containerChild := hbx, containerBorderWidth := 10, windowTitle := "TriHs",
@@ -278,6 +295,14 @@ setupPlayers window t1 t2 is2p = do
            widgetGrabFocus lLnNum  
            widgetShowAll window
 
+-- game state stuff
+           mg1State <- newMVar $ newGameState pSquare pSquare canvas preCan lLnNum lScNum
+           mg2State <- if is2p 
+                        then newMVar $ newGameState pSquare pSquare canvas2 preCan2 lLnNum2 lScNum2
+                        else newMVar NaS
+           shadState <- newMVar False
+
+
 -- handlers for the main and preview windows
            let exposeStuff = zip3 canvases 
                                   [mg1State,mg1State,mg2State,mg2State] $
@@ -289,8 +314,8 @@ setupPlayers window t1 t2 is2p = do
            onDestroy window mainQuit
 
 -- timer handler
-           let tH1 = timerHandler canvas preCan lLnNum lScNum mg1State
-           let tH2 = if is2p then timerHandler canvas2 preCan2 lLnNum2 lScNum2 mg2State
+           let tH1 = timerHandler mg1State mg2State
+           let tH2 = if is2p then timerHandler mg2State mg1State
                              else return False
            startNewGame mg1State lLnNum lScNum window tH1
            if is2p then startNewGame mg2State lLnNum2 lScNum2 window tH2 else return False
