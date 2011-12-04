@@ -45,16 +45,16 @@ Player 1 controls:
   - q - instant drop (hard)
   - e - rotate clockwise
   - w - rotate counterclockwise
-  - 1 - swap opponent's next brick (2 player game only)
+  - f - swap opponent's next brick (2 player game only)
 
 Player 2 controls:
-  - l - move left
-  - ' - move right
-  - ; - move down
-  - o - instant drop (hard)
-  - [ - rotate clockwise
-  - p - rotate counterclockwise
-  - 9 - swap opponent's next brick (2 player game only)
+  - p - move left
+  - ] - move right
+  - [ - move down
+  - - - instant drop (hard)
+  - = - rotate clockwise
+  - 0 - rotate counterclockwise
+  - o - swap opponent's next brick (2 player game only)
 
 Player 2 alt controls:
   - Left, Right, Down arrows - move as directed
