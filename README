@@ -27,7 +27,7 @@ CONTROLS
 
 The following keys are defined:
 
-  - Alt-p / Ctrl-p / "Quit" button
+  - Alt-q / Ctrl-q / "Quit" button
       Quit the game
   - Ctrl-p
       Pause the game
@@ -89,17 +89,17 @@ In principle, this separation should make it relatively easy to rip the
 whole front end (Gtk2Hs+Cairo) off of the back end and build a new one
 with another toolkit, or to swap out Cairo for OpenGL.
 
-The only front end-specific blemish in TriHsPieces is the "HandlerId"
-data in TetrisGameState.  To really separate these, TetrisGameState
-should either be defined in Main or wrapped in another datatype that is
-defined in Main.  However, it seemed to me that this would muddy up the
-code substantially for essentially no gain.
+The only front end-specific blemishes in TriHsPieces are the
+"HandlerId", "DrawingArea", and "Label" data in TetrisGameState.  To
+really separate these, TetrisGameState should either be defined in Main
+or wrapped in another datatype that is defined in Main.  However, it
+seemed to me that this would muddy up the code for essentially no gain.
 
 UI
 
 Yes, it's not pretty.  I care more about implementing interesting
 extensions to the Tetris rules than I do about making a beautiful UI.
-"Unfortunately", this means there's no fancy game over screen or the
+Unfortunately, this means there's no fancy game over screen or the
 like.  Feel free to make things prettier if you care; it should be
 pretty simple.
 
